@@ -6,11 +6,12 @@
 (() => {
   'use strict';
   const data = window.LEKSCAN_DATA;
-  if (!data) { document.body.textContent = 'Не удалось загрузить демоданные'; return; }
+  const prices = window.LEKSCAN_OFFERS;
+  if (!data || !prices) { document.body.textContent = 'Не удалось загрузить данные интерфейса'; return; }
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const normalize = (s) => String(s || '').trim().toLocaleLowerCase('ru-RU');
-  const fmtPrice = (num) => new Intl.NumberFormat('ru-RU').format(num);
+  const fmtPrice = (num) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(num);
   const telegram = window.Telegram?.WebApp;
 
   // LocalStorage is only a convenience in the demo, not a cross-device account store.
@@ -25,6 +26,7 @@
     city: data.cities.includes(savedCity) ? savedCity : 'Иваново',
     productId: data.products[0].id,
     form: '', dose: '', pack: '', sort: 'price', tab: 'search',
+    demo: false, realOffers: [], feedStatus: 'loading',
     favorites: savedFavorites.filter(x => typeof x === 'string').slice(0, 100)
   };
 
@@ -113,6 +115,16 @@
     offers.sort((a, b) => state.sort === 'priceDesc' ? b.price - a.price : a.price - b.price);
     return offers;
   }
+  function getVisibleOffers() {
+    const offers = state.demo ? getDemoOffers() : prices.matchOffers(state.realOffers, {
+      city: state.city, productId: state.productId, form: state.form, dose: state.dose, pack: state.pack
+    });
+    return offers.slice().sort((a, b) => state.sort === 'priceDesc' ? b.price - a.price : a.price - b.price);
+  }
+  function displayUpdatedAt(value) {
+    return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      .format(new Date(value));
+  }
   function renderOffers() {
     const product = getProduct();
     $('results-title').textContent = product.mnn;
@@ -125,34 +137,87 @@
     $('fav-glyph').textContent = isFav ? '♥' : '♡';
     $('city-label').textContent = state.city;
     $('sort-select').value = state.sort;
-    const offers = getDemoOffers();
-    $('count-tag').textContent = `${offers.length} предложения · демо`;
+    $('demo-toggle').checked = state.demo;
+    const offers = getVisibleOffers();
+    $('count-tag').textContent = state.demo ? `${offers.length} тестовых предложений` :
+      `${offers.length} предложений из подключённых источников`;
+    if (!offers.length) {
+      $('offer-list').innerHTML = `<div class="offer-empty"><strong>${state.feedStatus === 'loading' ? 'Проверяем источники…' : 'Подтверждённых цен пока нет'}</strong>
+        <p>Для выбранного города и параметров нет актуальных предложений от подключённых источников. Это не означает, что препарата нет в аптеках. Проверьте сайты сервисов выше.</p></div>`;
+      return;
+    }
     const cheapest = Math.min(...offers.map(x => x.price));
-    $('offer-list').innerHTML = offers.map((offer, i) => `
-      <article class="offer-card ${offer.price === cheapest ? 'top-offer' : ''}">
-        <div class="pharmacy-icon" aria-hidden="true">${esc(offer.pharmacyName.slice(-1))}</div>
-        <div><p class="offer-name">${esc(offer.pharmacyName)}</p><p class="offer-subtitle">${esc(offer.subtitle)}</p>
-          <div class="offer-tags"><span class="offer-tag">ВЫМЫШЛЕННАЯ</span>${offer.price === cheapest ? '<span class="offer-tag best">Мин. демо-цена</span>' : ''}</div>
-        </div>
+    $('offer-list').innerHTML = offers.map(offer => {
+      const best = offer.price === cheapest;
+      const details = state.demo ? `
+        <p class="offer-subtitle">${esc(offer.subtitle)}</p>
+        <div class="offer-tags"><span class="offer-tag">ВЫМЫШЛЕННАЯ</span>${best ? '<span class="offer-tag best">Мин. демо-цена</span>' : ''}</div>` : `
+        <p class="offer-subtitle">${esc(offer.pharmacyAddress || 'Адрес не указан')}</p>
+        <div class="offer-tags"><span class="offer-tag">${esc(offer.sourceName)}</span>${best ? '<span class="offer-tag best">Мин. из загруженных</span>' : ''}</div>
+        <p class="source-date">Данные на ${esc(displayUpdatedAt(offer.updatedAt))}</p>`;
+      return `<article class="offer-card ${best ? 'top-offer' : ''}">
+        <div class="pharmacy-icon" aria-hidden="true">${esc(offer.pharmacyName.slice(0, 1))}</div>
+        <div><p class="offer-name">${esc(offer.pharmacyName)}</p>${details}</div>
         <div class="offer-right"><p class="offer-price">${fmtPrice(offer.price)} <small>₽</small></p><button type="button" class="detail-button" data-offer-id="${esc(offer.id)}">Детали</button></div>
-      </article>`).join('');
+      </article>`;
+    }).join('');
   }
 
   function showDetail(id) {
-    const offer = getDemoOffers().find(x => x.id === id);
+    const offer = getVisibleOffers().find(x => x.id === id);
     if (!offer) return;
     const p = getProduct();
-    $('detail-content').innerHTML = `
-      <div class="matched-tag" style="display:inline-block">Демонстрационное предложение</div>
+    const common = `
       <div class="detail-price">${fmtPrice(offer.price)} <small>₽</small></div>
-      <div class="detail-row"><span>Аптека</span><strong>${esc(offer.pharmacyName)} (вымышленная)</strong></div>
+      <div class="detail-row"><span>Аптека</span><strong>${esc(offer.pharmacyName)}</strong></div>
       <div class="detail-row"><span>Город</span><strong>${esc(state.city)}</strong></div>
       <div class="detail-row"><span>Действующее вещество</span><strong>${esc(p.mnn)}</strong></div>
-      <div class="detail-row"><span>Параметры</span><strong>${esc(state.dose)}, ${esc(state.form.toLowerCase())}, ${esc(state.pack)}</strong></div>
-      <div class="detail-row"><span>Источник</span><strong>Демо-генератор</strong></div>
-      <div class="detail-row"><span>Наличие и адрес</span><strong>Нет реальных данных</strong></div>
-      <div class="detail-warning">Это тестовое значение для проверки интерфейса. Не используйте его для покупки или выбора лечения. Бронирование и переход к аптеке пока недоступны.</div>`;
+      <div class="detail-row"><span>Параметры</span><strong>${esc(state.dose)}, ${esc(state.form.toLowerCase())}, ${esc(state.pack)}</strong></div>`;
+    if (state.demo) {
+      $('detail-content').innerHTML = `<div class="matched-tag" style="display:inline-block">Демонстрационное предложение</div>${common}
+        <div class="detail-row"><span>Источник</span><strong>Демо-генератор</strong></div>
+        <div class="detail-row"><span>Наличие и адрес</span><strong>Нет реальных данных</strong></div>
+        <div class="detail-warning">Цена и аптека вымышленные. Это тест интерфейса, не предложение для покупки.</div>`;
+    } else {
+      $('detail-content').innerHTML = `<div class="matched-tag" style="display:inline-block">Из подключённого источника</div>${common}
+        <div class="detail-row"><span>Адрес</span><strong>${esc(offer.pharmacyAddress || 'Не указан')}</strong></div>
+        <div class="detail-row"><span>Источник</span><strong>${esc(offer.sourceName)}</strong></div>
+        <div class="detail-row"><span>Обновлено</span><strong>${esc(displayUpdatedAt(offer.updatedAt))}</strong></div>
+        <div class="detail-row"><span>Наличие</span><strong>${offer.availability === 'in_stock' ? 'По данным источника — в наличии' : 'Не подтверждено'}</strong></div>
+        <a class="primary-action" style="text-decoration:none" href="${esc(offer.sourceUrl)}" target="_blank" rel="noopener noreferrer">Открыть источник <span aria-hidden="true">↗</span></a>
+        <div class="detail-warning">Цена, остатки и условия бронирования могут измениться. Уточняйте их у аптеки. Совпадение МНН не означает автоматическую взаимозаменяемость.</div>`;
+    }
     openOverlay('detail');
+  }
+
+  async function loadPriceFeed() {
+    const feedURL = window.LEKSCAN_CONFIG?.offersUrl || './offers.json';
+    try {
+      const response = await fetch(feedURL, { cache: 'no-store', credentials: 'omit' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const payload = await response.json();
+      state.realOffers = prices.normaliseFeed(payload);
+      state.feedStatus = 'loaded';
+    } catch (error) {
+      state.realOffers = [];
+      state.feedStatus = 'unavailable';
+      console.warn('No licensed price feed available:', error);
+    }
+    renderOffers();
+  }
+
+  async function copySearchQuery() {
+    const query = `${getProduct().mnn} ${state.dose} ${state.form} ${state.pack}, ${state.city}`;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard is unavailable');
+      await navigator.clipboard.writeText(query);
+      const toast = $('copy-toast');
+      toast.textContent = 'Запрос скопирован — вставьте его в поиск аптеки';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    } catch {
+      window.prompt('Скопируйте запрос:', query);
+    }
   }
 
   function renderCityList() {
@@ -215,6 +280,8 @@
     }));
     $('medicine-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); performSearch(); } });
     $('search-button').addEventListener('click', performSearch);
+    $('copy-query').addEventListener('click', copySearchQuery);
+    $('demo-toggle').addEventListener('change', e => { state.demo = e.target.checked; renderOffers(); });
     $('form-select').addEventListener('change', e => { state.form = e.target.value; refreshDose(); renderOffers(); });
     $('dose-select').addEventListener('change', e => { state.dose = e.target.value; refreshPacks(); renderOffers(); });
     $('pack-select').addEventListener('change', e => { state.pack = e.target.value; renderOffers(); });
@@ -253,7 +320,7 @@
   function start() {
     try { telegram?.ready?.(); telegram?.expand?.(); } catch { /* browser preview */ }
     refreshForm();
-    renderChips(); renderOffers(); setupHandlers();
+    renderChips(); renderOffers(); setupHandlers(); loadPriceFeed();
   }
   start();
 })();

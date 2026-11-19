@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="./styles.css" />
   <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
   <script src="./data.js" defer></script>
+  <script src="./real-offers.js" defer></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -38,7 +39,7 @@
 
       <div class="demo-banner" role="note">
         <span class="banner-icon">!</span>
-        <div><strong>Демонстрационная версия</strong><p>Все цены и аптеки на экране вымышлены. Реальные источники пока не подключены.</p></div>
+        <div><strong>Демонстрационная версия</strong><p>Реальные цены появятся только после подключения источников. Тестовые цены доступны отдельно и всегда помечены как вымышленные.</p></div>
       </div>
 
       <section class="search-card" aria-label="Параметры поиска">
@@ -59,14 +60,26 @@
         <button class="primary-action" id="search-button" type="button">Найти предложения <span aria-hidden="true">→</span></button>
       </section>
 
+      <section class="real-sources" aria-label="Проверить цены на сайтах аптек">
+        <div class="real-sources-head"><span class="source-emoji" aria-hidden="true">🔎</span><div><h2>Проверить реальные цены</h2><p>Пока нет подключённых API, можно сравнить предложения самостоятельно на сайтах сервисов.</p></div></div>
+        <button type="button" class="copy-query" id="copy-query">Скопировать название, дозировку и город <span aria-hidden="true">⧉</span></button>
+        <div class="source-links">
+          <a href="https://www.apteki.su/" target="_blank" rel="noopener noreferrer">Apteki.su <span aria-hidden="true">↗</span></a>
+          <a href="https://uteka.ru/" target="_blank" rel="noopener noreferrer">Ютека <span aria-hidden="true">↗</span></a>
+          <a href="https://megapteka.ru/" target="_blank" rel="noopener noreferrer">Мегаптека <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="real-sources-note">Ссылки открывают главные страницы. На сайте аптеки отдельно выбери город и введи запрос — автоматическая передача запроса пока не реализована.</p>
+      </section>
+
       <section class="results-section" id="results-section" aria-live="polite">
         <div class="results-head">
           <div><p class="mini-label">РЕЗУЛЬТАТЫ ПОИСКА</p><h2 id="results-title">Парацетамол</h2><p class="results-description" id="results-description">500 мг · таблетки · 20 шт.</p></div>
           <button type="button" id="favorite-button" class="favorite-btn" aria-label="Добавить препарат в избранное" aria-pressed="false"><span id="fav-glyph">♡</span></button>
         </div>
-        <div class="results-meta"><span class="matched-tag" id="count-tag">4 предложения · демо</span><label class="sort-wrap">Сначала <select id="sort-select" aria-label="Сортировка"><option value="price">дешевле</option><option value="priceDesc">дороже</option></select></label></div>
+        <div class="results-meta"><span class="matched-tag" id="count-tag">Проверка источников</span><label class="sort-wrap">Сначала <select id="sort-select" aria-label="Сортировка"><option value="price">дешевле</option><option value="priceDesc">дороже</option></select></label></div>
         <div class="offer-list" id="offer-list"></div>
-        <div class="comparison-note"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 10.5v5.2M12 7.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Сравниваются одинаковые действующее вещество, дозировка, форма и количество в упаковке. Это не рекомендация заменять назначенный препарат.</span></div>
+        <label class="demo-switch"><input type="checkbox" id="demo-toggle" /><span><strong>Показать тестовые цены</strong><small>Для проверки интерфейса, не для покупки</small></span></label>
+        <div class="comparison-note"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 10.5v5.2M12 7.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Сравнение выполняется только при совпадении МНН, дозировки, формы и упаковки. Наличие и цену нужно уточнять в аптеке. Совпадение МНН не означает автоматическую взаимозаменяемость.</span></div>
       </section>
     </main>
 
@@ -81,7 +94,7 @@
       <div class="info-card"><div class="info-emoji">🔎</div><div><h3>Поиск по МНН</h3><p>Поиск по действующему веществу или известному торговому наименованию.</p></div></div>
       <div class="info-card"><div class="info-emoji">⚖️</div><div><h3>Корректное сравнение</h3><p>Дозировка, форма и размер упаковки должны совпадать. В перспективе появится отдельный расчёт цены за единицу.</p></div></div>
       <div class="info-card"><div class="info-emoji">🗺️</div><div><h3>Разные города России</h3><p>Архитектура рассчитана на подключение городов по мере появления доступных аптечных источников.</p></div></div>
-      <div class="warning-panel"><strong>Важно о данных</strong><p>Пока приложение работает только с демонстрационными данными. Оно не подтверждает наличие лекарств, не оформляет заказы и не заменяет врача или фармацевта. Для публичного запуска нужны легальные источники цен, проверка качества данных и политика конфиденциальности.</p></div>
+      <div class="warning-panel"><strong>Важно о данных</strong><p>В приложении есть ручные ссылки на сайты аптечных сервисов. Собственных актуальных цен пока нет. Тестовые предложения скрыты по умолчанию и отдельно обозначены. Приложение не подтверждает наличие лекарств, не оформляет заказы и не заменяет врача или фармацевта. Для полноценной работы нужны договорённости с поставщиками цен и политика конфиденциальности.</p></div>
     </main>
 
     <nav class="bottom-nav" aria-label="Основная навигация">
@@ -91,6 +104,7 @@
     </nav>
   </div>
 
+  <div id="copy-toast" class="copy-toast hidden" role="status" aria-live="polite"></div>
   <div class="overlay hidden" id="city-overlay" role="presentation">
     <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="city-sheet-title"><div class="grab-handle"></div><div class="sheet-header"><h2 id="city-sheet-title">Выбрать город</h2><button type="button" class="icon-btn" data-close="city" aria-label="Закрыть">✕</button></div><input id="city-search" class="sheet-search" placeholder="Поиск города" type="search" aria-label="Поиск города" /><div class="city-list" id="city-list"></div><p class="sheet-footnote">Города перечислены для демонстрации работы интерфейса, покрытие реальных аптек пока отсутствует.</p></section>
   </div>

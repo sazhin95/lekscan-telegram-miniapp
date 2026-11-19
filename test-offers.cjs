@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const { normaliseFeed, matchOffers, isSafeUrl } = require('./real-offers.js');
+const date = '2026-11-20T00:00:00.000Z';
+const now = Date.parse(date);
+const basic = { id: 'test-1', city: 'Иваново', productId: 'ibuprofen', form: 'Таблетки', dose: '200 мг', pack: '20 шт.', pharmacyName: 'Проверочная аптека', pharmacyAddress: 'Тестовый адрес', price: 156.2, currency: 'RUB', availability: 'in_stock', updatedAt: date, sourceName: 'Тестовый источник', sourceUrl: 'https://example.org/drug' };
+assert.equal(normaliseFeed({version: 1, offers: [basic]}, now).length, 1);
+assert.equal(normaliseFeed({version: 1, offers: [{...basic, price: -1}]}, now).length, 0);
+assert.equal(normaliseFeed({version: 1, offers: [{...basic, updatedAt: '2020-01-01T00:00:00Z'}]}, now).length, 0);
+assert.equal(normaliseFeed({version: 1, offers: [{...basic, sourceUrl: 'javascript:alert(1)'}]}, now).length, 0);
+assert.equal(normaliseFeed({version: 1, offers: [{...basic, availability: 'out_of_stock'}]}, now).length, 0);
+assert.equal(normaliseFeed({version: 1, offers: [{...basic, updatedAt: '2026-11-20T00:06:00Z'}]}, now).length, 0);
+assert.equal(matchOffers([basic], {city:'Москва',productId:'ibuprofen',form:'Таблетки',dose:'200 мг',pack:'20 шт.'}).length, 0);
+assert.equal(matchOffers([basic], {city:'Иваново',productId:'ibuprofen',form:'Таблетки',dose:'400 мг',pack:'20 шт.'}).length, 0);
+assert.equal(matchOffers([basic], {city:'Иваново',productId:'ibuprofen',form:'Таблетки',dose:'200 мг',pack:'20 шт.'}).length, 1);
+assert.equal(isSafeUrl('https://example.org'), true);
+assert.equal(isSafeUrl('http://example.org'), false);
+console.log('OK: 10 tests passed');
