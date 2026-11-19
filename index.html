@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f7fb" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="description" content="ЛекСкан — прототип Telegram Mini App для поиска лекарств по действующему веществу и сравнения аптечных цен." />
+  <title>ЛекСкан — поиск цен на лекарства</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="./data.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 28 28" width="28" height="28" fill="none"><rect x="5.4" y="10.7" width="17.2" height="7" rx="3.5" transform="rotate(-45 5.4 10.7)" fill="white" opacity=".95"/><path d="m12.8 5.4 9.8 9.8" stroke="#1A6DC9" stroke-width="2.2"/><circle cx="18.8" cy="18.7" r="4.3" fill="#D8E8FF"/><path d="M16.9 18.7h3.8M18.8 16.8v3.8" stroke="#2968C8" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="brand-text"><strong>ЛекСкан</strong><span>Лекарства. Цены. Выбор.</span></div>
+      </div>
+      <button type="button" class="location-btn" id="city-trigger" aria-label="Выбрать город" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" width="17" height="17" aria-hidden="true"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.3" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span id="city-label">Иваново</span>
+        <svg viewBox="0 0 20 20" fill="none" width="13" height="13" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <main id="page-search" class="page page-search" aria-label="Поиск лекарств">
+      <section class="hero">
+        <span class="eyebrow"><span class="pulse-dot"></span> Поиск по действующему веществу</span>
+        <h1>Найди нужное.<br /><span>Сравни цены.</span></h1>
+        <p>По названию препарата или МНН — в своём городе.</p>
+      </section>
+
+      <div class="demo-banner" role="note">
+        <span class="banner-icon">!</span>
+        <div><strong>Демонстрационная версия</strong><p>Все цены и аптеки на экране вымышлены. Реальные источники пока не подключены.</p></div>
+      </div>
+
+      <section class="search-card" aria-label="Параметры поиска">
+        <label class="field-label" for="medicine-input">Что ищем?</label>
+        <div class="search-input-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.7" stroke="currentColor" stroke-width="1.9"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          <input id="medicine-input" type="search" placeholder="Например, ибупрофен или Нурофен" autocomplete="off" aria-label="Название лекарства или действующее вещество" />
+        </div>
+        <div id="suggestions" class="suggestions hidden" role="listbox" aria-label="Найденные препараты"></div>
+        <div class="quick-chips" id="quick-chips" aria-label="Популярные запросы"></div>
+        <div class="field-divider"></div>
+        <div class="filters-caption">Уточни препарат</div>
+        <div class="filters-row">
+          <label class="select-wrap"><span>Дозировка</span><select id="dose-select" aria-label="Дозировка"></select></label>
+          <label class="select-wrap"><span>Форма</span><select id="form-select" aria-label="Лекарственная форма"></select></label>
+          <label class="select-wrap"><span>Упаковка</span><select id="pack-select" aria-label="Упаковка"></select></label>
+        </div>
+        <button class="primary-action" id="search-button" type="button">Найти предложения <span aria-hidden="true">→</span></button>
+      </section>
+
+      <section class="results-section" id="results-section" aria-live="polite">
+        <div class="results-head">
+          <div><p class="mini-label">РЕЗУЛЬТАТЫ ПОИСКА</p><h2 id="results-title">Парацетамол</h2><p class="results-description" id="results-description">500 мг · таблетки · 20 шт.</p></div>
+          <button type="button" id="favorite-button" class="favorite-btn" aria-label="Добавить препарат в избранное" aria-pressed="false"><span id="fav-glyph">♡</span></button>
+        </div>
+        <div class="results-meta"><span class="matched-tag" id="count-tag">4 предложения · демо</span><label class="sort-wrap">Сначала <select id="sort-select" aria-label="Сортировка"><option value="price">дешевле</option><option value="priceDesc">дороже</option></select></label></div>
+        <div class="offer-list" id="offer-list"></div>
+        <div class="comparison-note"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 10.5v5.2M12 7.2v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Сравниваются одинаковые действующее вещество, дозировка, форма и количество в упаковке. Это не рекомендация заменять назначенный препарат.</span></div>
+      </section>
+    </main>
+
+    <main id="page-favorites" class="page hidden" aria-label="Избранное">
+      <div class="subpage-head"><p class="mini-label">ВАШ СПИСОК</p><h1>Избранное</h1><p>Сохранённые варианты поиска на этом устройстве</p></div>
+      <div id="favorites-content"></div>
+      <div class="soft-note">Синхронизация с аккаунтом и уведомления о снижении цен появятся после подключения сервера и источников данных.</div>
+    </main>
+
+    <main id="page-info" class="page hidden" aria-label="О приложении">
+      <div class="subpage-head"><p class="mini-label">О ПРОЕКТЕ</p><h1>Что такое ЛекСкан?</h1><p>Простой путь от действующего вещества до сравнения аптечных предложений.</p></div>
+      <div class="info-card"><div class="info-emoji">🔎</div><div><h3>Поиск по МНН</h3><p>Поиск по действующему веществу или известному торговому наименованию.</p></div></div>
+      <div class="info-card"><div class="info-emoji">⚖️</div><div><h3>Корректное сравнение</h3><p>Дозировка, форма и размер упаковки должны совпадать. В перспективе появится отдельный расчёт цены за единицу.</p></div></div>
+      <div class="info-card"><div class="info-emoji">🗺️</div><div><h3>Разные города России</h3><p>Архитектура рассчитана на подключение городов по мере появления доступных аптечных источников.</p></div></div>
+      <div class="warning-panel"><strong>Важно о данных</strong><p>Пока приложение работает только с демонстрационными данными. Оно не подтверждает наличие лекарств, не оформляет заказы и не заменяет врача или фармацевта. Для публичного запуска нужны легальные источники цен, проверка качества данных и политика конфиденциальности.</p></div>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Основная навигация">
+      <button class="nav-item active" data-tab="search" aria-current="page" type="button"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5" stroke="currentColor" stroke-width="1.9"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><span>Поиск</span></button>
+      <button class="nav-item" data-tab="favorites" type="button"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.5 8.5c0 4.5-8.5 10-8.5 10S3.5 13 3.5 8.5a4.5 4.5 0 0 1 8.5-1.8 4.5 4.5 0 0 1 8.5 1.8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Избранное</span></button>
+      <button class="nav-item" data-tab="info" type="button"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.8"/><path d="M12 10.5v5.5M12 7.5v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>О проекте</span></button>
+    </nav>
+  </div>
+
+  <div class="overlay hidden" id="city-overlay" role="presentation">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="city-sheet-title"><div class="grab-handle"></div><div class="sheet-header"><h2 id="city-sheet-title">Выбрать город</h2><button type="button" class="icon-btn" data-close="city" aria-label="Закрыть">✕</button></div><input id="city-search" class="sheet-search" placeholder="Поиск города" type="search" aria-label="Поиск города" /><div class="city-list" id="city-list"></div><p class="sheet-footnote">Города перечислены для демонстрации работы интерфейса, покрытие реальных аптек пока отсутствует.</p></section>
+  </div>
+  <div class="overlay hidden" id="detail-overlay" role="presentation">
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="detail-sheet-title"><div class="grab-handle"></div><div class="sheet-header"><h2 id="detail-sheet-title">Детали предложения</h2><button type="button" class="icon-btn" data-close="detail" aria-label="Закрыть">✕</button></div><div id="detail-content"></div></section>
+  </div>
+</body>
+</html>
